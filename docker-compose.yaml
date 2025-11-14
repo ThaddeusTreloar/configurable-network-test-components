@@ -3,6 +3,21 @@ networks:
     driver: bridge
 
 services:
+  load-generator:
+    networks:
+      - api_network
+    image: configurable-load-generator:latest
+    hostname: load-generator
+    container_name: load-generator
+    # ports:
+    #   - 8080:8080
+    # healthcheck:
+    #   test: "curl localhost:8080/health"
+    environment:
+      RUST_LOG: "INFO"
+      APP_TARGETS__TEST__TARGET: "api:8080/apps"
+      APP_TARGETS__TEST__CLIENT_COUNT_RAMP_INTERVAL: "5000"
+
   api:
     networks:
       - api_network
@@ -14,14 +29,14 @@ services:
     healthcheck:
       test: "curl localhost:8080/health"
     environment:
-      PORT: 8080
       RUST_LOG: "INFO"
-      ROUTE_HEALTH_PATH: "/health"
-      ROUTE_HEALTH_METHOD: "GET"
-      ROUTE_APP_PATH: "/app"
-      ROUTE_APP_METHOD: "POST"
-      ROUTE_APP_LATENCY: "10"
-      ROUTE_APPLIST_PATH: "/apps"
-      ROUTE_APPLIST_METHOD: "GET"
-      ROUTE_APPGET_PATH: "/app/{id}"
-      ROUTE_APPGET_METHOD: "GET"
+      APP_PORT: 8080
+      APP_ROUTES_HEALTH_PATH: "/health"
+      APP_ROUTES_HEALTH_METHOD: "GET"
+      APP_ROUTES_APP_PATH: "/app"
+      APP_ROUTES_APP_METHOD: "POST"
+      APP_ROUTES_APP_LATENCY: "10"
+      APP_ROUTES_APPLIST_PATH: "/apps"
+      APP_ROUTES_APPLIST_METHOD: "GET"
+      APP_ROUTES_APPGET_PATH: "/app/{id}"
+      APP_ROUTES_APPGET_METHOD: "GET"
