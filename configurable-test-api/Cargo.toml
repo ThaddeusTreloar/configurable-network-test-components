@@ -1,0 +1,16 @@
+[package]
+name = "configurable-test-api"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum = "0.8.6"
+env_logger = { workspace = true }
+envy = "0.4.2"
+figment = { workspace = true }
+itertools = { workspace = true }
+log = { workspace = true }
+serde = { workspace = true }
+shared = { path = "../shared" }
+thiserror = { workspace = true }
+tokio = { workspace = true }
