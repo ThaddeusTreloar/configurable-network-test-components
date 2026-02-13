@@ -1,6 +1,7 @@
 use axum::Router;
 use figment::{Figment, providers::Env};
 use log::info;
+use tokio::signal::unix::{SignalKind, signal};
 
 use crate::{
     callback::make_callback,
@@ -58,11 +59,21 @@ async fn main() {
         app = app.route(&path, callback);
     }
 
-    match axum::serve(listener, app).await {
-        Ok(_) => (),
-        Err(e) => {
-            log::error!("Error while parsing config: {e}");
-            return;
-        }
-    };
+    let mut sigint = signal(SignalKind::interrupt()).expect("Failed to get interrupt signal");
+    let mut sigterm = signal(SignalKind::terminate()).expect("Failed to get terminate signal");
+
+    tokio::select!(
+      r =  axum::serve(listener, app) => match r {
+          Ok(_) => (),
+          Err(e) => {
+              log::error!("Error while parsing config: {e}");
+          }
+      },
+      _ = sigint.recv() => {
+        log::info!("Recieved SIGINT, shutting down...")
+      },
+      _ = sigterm.recv() => {
+        log::info!("Recieved SIGTERM, shutting down...")
+      },
+    );
 }

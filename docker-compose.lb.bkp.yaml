@@ -1,0 +1,84 @@
+networks:
+  api_network:
+    driver: bridge
+
+services:
+  load-generator:
+    networks:
+      - api_network
+    image: configurable-load-generator:latest
+    hostname: load-generator
+    container_name: load-generator
+    # ports:
+    #   - 8080:8080
+    # healthcheck:
+    #   test: "curl localhost:8080/health"
+    environment:
+      RUST_LOG: "INFO"
+      # APP_TARGETS__TEST__TARGET: "http://api:8081/apps"
+      APP_TARGETS__TEST__TARGET: "http://load-balancer:8080/s/apps"
+      APP_TARGETS__TEST__CLIENT_TIMEOUT: "1000"
+      APP_TARGETS__TEST__CLIENT_COUNT_START: "100"
+      APP_TARGETS__TEST__CLIENT_COUNT_RAMP: "100"
+      APP_TARGETS__TEST__CLIENT_WAIT_START: "0"
+      APP_TARGETS__TEST__CLIENT_WAIT_JITTER: "5"
+      APP_TARGETS__TEST__CLIENT_COUNT_RAMP_INTERVAL: "5000"
+
+  load-balancer:
+    networks:
+      - api_network
+    image: rs-lb-test:latest
+    hostname: load-balancer
+    container_name: load-balancer
+    ports:
+      - 8080:8080
+    # healthcheck:
+    #   test: "curl localhost:8080/health"
+    environment:
+      RUST_LOG: "INFO"
+
+  api:
+    networks:
+      - api_network
+    image: configurable-test-api:latest
+    hostname: api
+    container_name: api
+    ports:
+      - 8081:8081
+    healthcheck:
+      test: "curl localhost:8081/health"
+    environment:
+      RUST_LOG: "INFO"
+      APP_PORT: 8081
+      APP_ROUTES_HEALTH_PATH: "/health"
+      APP_ROUTES_HEALTH_METHOD: "GET"
+      APP_ROUTES_APP_PATH: "/app"
+      APP_ROUTES_APP_METHOD: "POST"
+      APP_ROUTES_APP_LATENCY: "10"
+      APP_ROUTES_APPLIST_PATH: "/apps"
+      APP_ROUTES_APPLIST_METHOD: "GET"
+      APP_ROUTES_APPGET_PATH: "/app/{id}"
+      APP_ROUTES_APPGET_METHOD: "GET"
+
+  api-2:
+    networks:
+      - api_network
+    image: configurable-test-api:latest
+    hostname: api
+    container_name: api
+    ports:
+      - 8082:8082
+    healthcheck:
+      test: "curl localhost:8082/health"
+    environment:
+      RUST_LOG: "INFO"
+      APP_PORT: 8082
+      APP_ROUTES_HEALTH_PATH: "/health"
+      APP_ROUTES_HEALTH_METHOD: "GET"
+      APP_ROUTES_APP_PATH: "/app"
+      APP_ROUTES_APP_METHOD: "POST"
+      APP_ROUTES_APP_LATENCY: "10"
+      APP_ROUTES_APPLIST_PATH: "/apps"
+      APP_ROUTES_APPLIST_METHOD: "GET"
+      APP_ROUTES_APPGET_PATH: "/app/{id}"
+      APP_ROUTES_APPGET_METHOD: "GET"

@@ -9,34 +9,258 @@ services:
     image: configurable-load-generator:latest
     hostname: load-generator
     container_name: load-generator
-    # ports:
-    #   - 8080:8080
-    # healthcheck:
-    #   test: "curl localhost:8080/health"
     environment:
       RUST_LOG: "INFO"
-      APP_TARGETS__TEST__TARGET: "api:8080/apps"
-      APP_TARGETS__TEST__CLIENT_COUNT_RAMP_INTERVAL: "5000"
+      # APP_TARGETS__PROJECTS__TARGET: "http://project-api-1:8081/api/v1/projects"
+      APP_TARGETS__PROJECTS__TARGET: "http://load-balancer:8080/projects/api/v1/projects"
+      APP_TARGETS__PROJECTS__CLIENT_TIMEOUT: "1001"
+      APP_TARGETS__PROJECTS__CLIENT_COUNT_START: "5000"
+      APP_TARGETS__PROJECTS__CLIENT_COUNT_RAMP: "500"
+      APP_TARGETS__PROJECTS__CLIENT_WAIT_START: "0"
+      APP_TARGETS__PROJECTS__CLIENT_WAIT_JITTER: "5"
+      APP_TARGETS__PROJECTS__CLIENT_COUNT_RAMP_INTERVAL: "5000"
+      # APP_TARGETS__SUBMISSIONS__TARGET: "http://load-balancer:8080/submissions/api/v1/submissions"
+      # APP_TARGETS__SUBMISSIONS__CLIENT_TIMEOUT: "1000"
+      # APP_TARGETS__SUBMISSIONS__CLIENT_COUNT_START: "100"
+      # APP_TARGETS__SUBMISSIONS__CLIENT_COUNT_RAMP: "100"
+      # APP_TARGETS__SUBMISSIONS__CLIENT_WAIT_START: "0"
+      # APP_TARGETS__SUBMISSIONS__CLIENT_WAIT_JITTER: "5"
+      # APP_TARGETS__SUBMISSIONS__CLIENT_COUNT_RAMP_INTERVAL: "5000"
 
-  api:
+  # nginx:
+  #   image: nginx:stable-alpine
+  #   container_name: my-nginx-server
+  #   ports:
+  #     - "8080:8080"
+  #     # - "443:443" # Optional, for HTTPS
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  #   restart: always
+
+  project-api-1:
     networks:
       - api_network
     image: configurable-test-api:latest
-    hostname: api
-    container_name: api
+    hostname: project-api-1
+    container_name: project-api-1
     ports:
-      - 8080:8080
+      - 8081:8081
     healthcheck:
-      test: "curl localhost:8080/health"
+      test: "curl localhost:8081/health"
     environment:
-      RUST_LOG: "INFO"
-      APP_PORT: 8080
+      RUST_LOG: "DEBUG"
+      APP_PORT: 8081
+      APP_ROUTES_TMPHEALTH_PATH: "/"
+      APP_ROUTES_TMPHEALTH_METHOD: "GET"
       APP_ROUTES_HEALTH_PATH: "/health"
       APP_ROUTES_HEALTH_METHOD: "GET"
-      APP_ROUTES_APP_PATH: "/app"
-      APP_ROUTES_APP_METHOD: "POST"
-      APP_ROUTES_APP_LATENCY: "10"
-      APP_ROUTES_APPLIST_PATH: "/apps"
+      APP_ROUTES_APPLIST_PATH: "/api/v1/projects"
       APP_ROUTES_APPLIST_METHOD: "GET"
-      APP_ROUTES_APPGET_PATH: "/app/{id}"
-      APP_ROUTES_APPGET_METHOD: "GET"
+
+  project-api-2:
+    networks:
+      - api_network
+    image: configurable-test-api:latest
+    hostname: project-api-2
+    container_name: project-api-2
+    ports:
+      - 8082:8082
+    healthcheck:
+      test: "curl localhost:8082/health"
+    environment:
+      RUST_LOG: "DEBUG"
+      APP_PORT: 8082
+      APP_ROUTES_TMPHEALTH_PATH: "/"
+      APP_ROUTES_TMPHEALTH_METHOD: "GET"
+      APP_ROUTES_HEALTH_PATH: "/health"
+      APP_ROUTES_HEALTH_METHOD: "GET"
+      APP_ROUTES_APPLIST_PATH: "/api/v1/projects"
+      APP_ROUTES_APPLIST_METHOD: "GET"
+
+  # submissions-api-1:
+  #   networks:
+  #     - api_network
+  #   image: configurable-test-api:latest
+  #   hostname: submissions-api-1
+  #   container_name: submissions-api-1
+  #   ports:
+  #     - 8083:8083
+  #   healthcheck:
+  #     test: "curl localhost:8083/health"
+  #   environment:
+  #     RUST_LOG: "INFO"
+  #     APP_PORT: 8083
+  #     APP_ROUTES_TMPHEALTH_PATH: "/"
+  #     APP_ROUTES_TMPHEALTH_METHOD: "GET"
+  #     APP_ROUTES_HEALTH_PATH: "/health"
+  #     APP_ROUTES_HEALTH_METHOD: "GET"
+  #     APP_ROUTES_SUBMISSIONLIST_PATH: "/api/v1/submissions"
+  #     APP_ROUTES_SUBMISSIONLIST_METHOD: "GET"
+
+  # submissions-api-2:
+  #   networks:
+  #     - api_network
+  #   image: configurable-test-api:latest
+  #   hostname: submissions-api-2
+  #   container_name: submissions-api-2
+  #   ports:
+  #     - 8084:8084
+  #   healthcheck:
+  #     test: "curl localhost:8084/health"
+  #   environment:
+  #     RUST_LOG: "INFO"
+  #     APP_PORT: 8084
+  #     APP_ROUTES_TMPHEALTH_PATH: "/"
+  #     APP_ROUTES_TMPHEALTH_METHOD: "GET"
+  #     APP_ROUTES_HEALTH_PATH: "/health"
+  #     APP_ROUTES_HEALTH_METHOD: "GET"
+  #     APP_ROUTES_SUBMISSIONLIST_PATH: "/api/v1/submissions"
+  #     APP_ROUTES_SUBMISSIONLIST_METHOD: "GET"
+
+  load-balancer:
+    networks:
+      - api_network
+    image: rs-lb-test:latest
+    hostname: load-balancer
+    container_name: load-balancer
+    ports:
+      - 8080:8080
+    # healthcheck:
+    #   test: "curl localhost:8080/health"
+    environment:
+      RUST_LOG: "DEBUG"
+      APP_LISTENER_PORT: 8080
+      APP_CONNECTION_TIMOUT: 10000
+      APP_LOAD_BALANCING_ALGORITHM: ROUND_ROBIN
+      APP_CONNECTION_POOL_SIZE: 4096
+      APP_CACHE_ENABLED: true
+      APP_CACHE_TTL: 10000
+      APP_LISTENER_RULES__PROJECTS__TARGET_GROUP: projectsapi
+      APP_LISTENER_RULES__PROJECTS__PATH_PREFIX: "/projects"
+      APP_LISTENER_RULES__PROJECTS__PATH_REWRITE: "/projects"
+      # APP_LISTENER_RULES__SUBMISSIONS__TARGET_GROUP: submissionsapi
+      # APP_LISTENER_RULES__SUBMISSIONS__PATH_PREFIX: "/submissions"
+      # APP_LISTENER_RULES__SUBMISSIONS__PATH_REWRITE: "/submissions"
+      APP_TARGET_GROUPS__PROJECTSAPI__TARGETS: "project-api-1:8081,project-api-2:8082"
+      APP_TARGET_GROUPS__PROJECTSAPI__HEALTH_CHECK__ENABLED: "true"
+      APP_TARGET_GROUPS__PROJECTSAPI__HEALTH_CHECK__PATH: "/health"
+      APP_TARGET_GROUPS__PROJECTSAPI__HEALTH_CHECK__INTERVAL: "1000"
+      # APP_TARGET_GROUPS__SUBMISSIONSAPI__TARGETS: "submissions-api-1:8083,submissions-api-2:8084"
+      # APP_TARGET_GROUPS__PROJECTSAPI__TARGETS: "project-api-1:8081/api/v1,project-api-2:8082/api/v1"
+      # APP_TARGET_GROUPS__SUBMISSIONSAPI__TARGETS: "submissions-api-1:8083/api/v1,submissions-api-2:8084/api/v1"
+
+  # team-7-load-balancer:
+  #   networks:
+  #     - api_network
+  #   image: team7-lb:latest
+  #   hostname: load-balancer
+  #   container_name: load-balancer
+  #   ports:
+  #     - 8080:8080
+  #   # healthcheck:
+  #   #   test: "curl localhost:8080/health"
+  #   environment:
+  #     RUST_LOG: "INFO"
+  #     LISTENER_PORT: 8080
+  #     CONNECTION_TIMOUT: 10
+  #     LOAD_BALANCING_ALGORITHM: ROUND_ROBIN
+  #     # APP_CONNECTION_POOL_SIZE: 4096
+  #     LISTENER_RULES: '[{"path_prefix": "/projects", "path_rewrite": "", "target_group": "backends"}]'
+  #     TARGET_GROUPS: '{"backends": ["project-api-1:8081", "project-api-2:8082"]}'
+  #     CACHE_ENABLE: false
+  #     HEADER_CONVENTION_ENABLE: true
+  #     # APP_LISTENER_RULES__SUBMISSIONS__TARGET_GROUP: submissionsapi
+  #     # APP_LISTENER_RULES__SUBMISSIONS__PATH_PREFIX: "/submissions"
+  #     # APP_LISTENER_RULES__SUBMISSIONS__PATH_REWRITE: "/submissions"
+  #     # APP_TARGET_GROUPS__PROJECTSAPI__TARGETS: "project-api-1:8081"
+  #     # APP_TARGET_GROUPS__SUBMISSIONSAPI__TARGETS: "submissions-api-1:8083,submissions-api-2:8084"
+  #     # APP_TARGET_GROUPS__PROJECTSAPI__TARGETS: "project-api-1:8081/api/v1,project-api-2:8082/api/v1"
+  #     # APP_TARGET_GROUPS__SUBMISSIONSAPI__TARGETS: "submissions-api-1:8083/api/v1,submissions-api-2:8084/api/v1"
+
+  # layer-7-load-balancer:
+  #   networks:
+  #     - api_network
+  #   image: layer7:latest
+  #   hostname: load-balancer
+  #   container_name: load-balancer
+  #   volumes:
+  #     - "./volumes/config.yml:/app/config.yml"
+  #   ports:
+  #     - 8080:8080
+  #   # healthcheck:
+  #   #   test: "curl localhost:8080/health"
+  #   environment:
+  #     LOG_LEVEL: "INFO"
+  #     LISTENER_PORT: 8080
+  #     CONNECTION_TIMOUT: 10000
+  #     LOAD_BALANCING_ALGORITHM: ROUND_ROBIN
+  #     HEALTH_CHECK_INTERVAL: 360
+  #     # APP_CONNECTION_POOL_SIZE: 4096
+  #     # LISTENER_RULE_1_PATH_PREFIX: /projects
+  #     # LISTENER_RULE_1_PATH_REWRITE: /projects
+  #     # LISTENER_RULE_1_TARGET_GROUP: backend
+  #     # TARGET_GROUP_1_NAME: backend
+  #     # TARGET_GROUP_1_TARGETS: project-api-1:8081,project-api-2:8082
+  #     # CACHE_ENABLE: false
+  #     # HEADER_CONVENTION_ENABLE: false
+  #     # APP_LISTENER_RULES__SUBMISSIONS__TARGET_GROUP: submissionsapi
+  #     # APP_LISTENER_RULES__SUBMISSIONS__PATH_PREFIX: "/submissions"
+  #     # APP_LISTENER_RULES__SUBMISSIONS__PATH_REWRITE: "/submissions"
+  #     # APP_TARGET_GROUPS__PROJECTSAPI__TARGETS: "project-api-1:8081"
+  #     # APP_TARGET_GROUPS__SUBMISSIONSAPI__TARGETS: "submissions-api-1:8083,submissions-api-2:8084"
+  #     # APP_TARGET_GROUPS__PROJECTSAPI__TARGETS: "project-api-1:8081/api/v1,project-api-2:8082/api/v1"
+  #     # APP_TARGET_GROUPS__SUBMISSIONSAPI__TARGETS: "submissions-api-1:8083/api/v1,submissions-api-2:8084/api/v1"
+
+  # 504-load-balancer:
+  #   networks:
+  #     - api_network
+  #   image: 504:latest
+  #   hostname: load-balancer
+  #   container_name: load-balancer
+  #   volumes:
+  #     - "./volumes/config.yml:/app/config.yml"
+  #   ports:
+  #     - 8080:8080
+  #   # healthcheck:
+  #   #   test: "curl localhost:8080/health"
+  #   environment:
+  #     LOG_LEVEL: "INFO"
+  #     LISTENER_PORT: 8080
+  #     CONNECTION_TIMOUT: 10000
+  #     LOAD_BALANCING_ALGORITHM: ROUND_ROBIN
+  #     HEALTH_CHECK_INTERVAL: 360
+  #     # APP_CONNECTION_POOL_SIZE: 4096
+  #     LISTENER_RULE_1_PATH_PREFIX: /projects
+  #     LISTENER_RULE_1_PATH_REWRITE: /projects
+  #     LISTENER_RULE_1_TARGET_GROUP: backend
+  #     TARGET_GROUP_1_NAME: backend
+  #     TARGET_GROUP_1_TARGETS: project-api-1:8081,project-api-2:8082
+  #     # CACHE_ENABLE: false
+  #     # HEADER_CONVENTION_ENABLE: false
+  #     # APP_LISTENER_RULES__SUBMISSIONS__TARGET_GROUP: submissionsapi
+  #     # APP_LISTENER_RULES__SUBMISSIONS__PATH_PREFIX: "/submissions"
+  #     # APP_LISTENER_RULES__SUBMISSIONS__PATH_REWRITE: "/submissions"
+  #     # APP_TARGET_GROUPS__PROJECTSAPI__TARGETS: "project-api-1:8081"
+  #     # APP_TARGET_GROUPS__SUBMISSIONSAPI__TARGETS: "submissions-api-1:8083,submissions-api-2:8084"
+  #     # APP_TARGET_GROUPS__PROJECTSAPI__TARGETS: "project-api-1:8081/api/v1,project-api-2:8082/api/v1"
+  #     # APP_TARGET_GROUPS__SUBMISSIONSAPI__TARGETS: "submissions-api-1:8083/api/v1,submissions-api-2:8084/api/v1"
+
+  # loadbalancerr-load-balancer:
+  #   networks:
+  #     - api_network
+  #   image: quarkus/loadbalancerr-jvm:latest
+  #   hostname: load-balancer
+  #   container_name: load-balancer
+  #   volumes:
+  #     - "./volumes/loadbalancerr-config.yml:/opt/config/config.yml"
+  #   ports:
+  #     - 8080:8080
+  #   # healthcheck:
+  #   #   test: "curl localhost:8080/health"
+  #   environment:
+  #     QUARKUS_LOG_LEVEL: INFO
+  #     LISTENER_PORT: 8080
+  #     CONNECTION_TIMOUT: 10000
+  #     LOAD_BALANCING_ALGORITHM: ROUND_ROBIN
+  #     HEALTH_CHECK_INTERVAL: 360
+  #     QUARKUS_CONFIG_LOCATIONS: /opt/config/config.yml

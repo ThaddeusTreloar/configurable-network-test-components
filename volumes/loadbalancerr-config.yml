@@ -1,0 +1,36 @@
+lbConfig:
+  # Default balancing algorithm: ROUND_ROBIN, WEIGHTED, STICKY, LRT
+  algorithm: ROUND_ROBIN
+  # Enable request caching for GET requests
+  cacheEnabled: false
+  # Cache TTL in milliseconds (default 1 minute)
+  cacheTtlMillis: 10000
+  # Enable rust-proofing
+  rustProofingEnabled: false
+  targetGroups:
+    # each target group represents a backend service
+    # multiple target groups can be defined for different services
+    # targetGroups are keyed by a unique name
+    # A targetGroup has:
+    # - path (mandatory): URL path prefix for this target group
+    # - algorithm (optional): load balancing algorithm for this target group
+    # - targets (mandatory): list of target servers for this target group. Each target has:
+    #   - url (mandatory): target server URL
+    #   - weight (optional): weight for WEIGHTED algorithm
+    # - healthCheck (optional): configuration for health checking the targets
+    # - pathRewrite (optional): path prefix to strip from URI before forwarding to targets
+
+    # 'trio' is an example of a fully-specified target group using WEIGHTED algorithm with health checks
+    trio:
+      path: /projects
+      pathRewrite: /projects
+      algorithm: ROUND_ROBIN
+      targets:
+        - url: http://project-api-1:8081
+        - url: http://project-api-2:8082
+      healthCheck:
+        enabled: false
+        # path: /healthz
+        # interval: 5000
+        # successThreshold: 1
+        # failureThreshold: 3

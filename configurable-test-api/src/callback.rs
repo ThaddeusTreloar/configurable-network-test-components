@@ -1,6 +1,10 @@
 use std::time::Duration;
 
-use axum::routing::{MethodRouter, connect, delete, get, head, options, patch, post, put, trace};
+use axum::{
+    body::Body,
+    http::Request,
+    routing::{MethodRouter, connect, delete, get, head, options, patch, post, put, trace},
+};
 use shared::Method;
 use tokio::time::sleep;
 
@@ -44,7 +48,8 @@ where
             sleep(Duration::from_millis(latency)).await;
             "hello"
         }),
-        Method::Get => get(async move || {
+        Method::Get => get(async move |request: Request<Body>| {
+            log::debug!("Received request, method: GET, uri: {}", request.uri());
             sleep(Duration::from_millis(latency)).await;
             "hello"
         }),

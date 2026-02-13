@@ -1,0 +1,25 @@
+listeners:
+  - path_prefix: "/projects"
+    path_rewrite: "/"
+    target_group: "backend"
+
+target_groups:
+  - name: "backend"
+    # session_ttl: 30000
+    targets:
+      - hostname: "project-api-1"
+        port: 8081
+        # weight: 3
+        healthcheck:
+          path: "/health"
+          status_code:
+            - 200
+          timeout: 2
+      - hostname: "project-api-2"
+        port: 8082
+        # weight: 2
+        healthcheck:
+          path: "/health"
+          status_code:
+            - 200
+          timeout: 2
